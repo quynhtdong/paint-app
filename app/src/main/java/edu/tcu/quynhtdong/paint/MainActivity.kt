@@ -1,8 +1,14 @@
 package edu.tcu.quynhtdong.paint
 
 import android.app.Dialog
+import android.content.ContentValues
+import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.drawable.Drawable
 import android.os.Bundle
+import android.os.Environment
+import android.provider.MediaStore
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -12,7 +18,13 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.drawToBitmap
 import androidx.core.view.get
 import androidx.core.view.iterator
+import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
+import com.bumptech.glide.RequestBuilder
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 
 class MainActivity : AppCompatActivity(){
@@ -53,7 +65,20 @@ class MainActivity : AppCompatActivity(){
 
 
         val pickMedia = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-            findViewById<ImageView>(R.id.background_iv).setImageURI(uri)
+            var background = findViewById<ImageView>(R.id.background_iv)
+            val dialog = showInProgress()
+            if(uri != null) {
+                lifecycleScope.launch{
+                    var request: RequestBuilder<Drawable>
+                    withContext(Dispatchers.IO) {
+                        delay(1000)
+                        request = Glide.with(this@MainActivity).load(uri.toString())
+                    }
+                    dialog.dismiss()
+                    request.into(background)
+                }
+
+            }
             Glide.with(this).load(uri).into(findViewById<ImageView>(R.id.background_iv));
         }
         findViewById<ImageView>(R.id.gallery_iv).setOnClickListener {
@@ -67,24 +92,61 @@ class MainActivity : AppCompatActivity(){
             backgroundIv.setBackgroundColor(Color.WHITE)
         }
 
-        val bitmap = findViewById<FrameLayout>(R.id.drawing_fl).drawToBitmap()
-//        val values = ContentValues().apply {
-//            put(
-//                MediaStore.MediaColumns.DISPLAY_NAME,
-//                System.currentTimeMillis().toString().substring(2, 11) + ".jpeg"
-//            )
-//            put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
-//            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DCIM)
-//        }
-//        val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
-//        uri?.let{
-//            contentResolver.openOutputStream(it).use { it_->
-//                bitmap.compress(Bitmap.CompressFormat.JPEG, 90, it_)
-//            }
-//        }
+        findViewById<ImageView>(R.id.save_iv).setOnClickListener{
+            setUpSave()
+        }
 
 
 
+    }
+
+    private fun setUpSave() {
+
+        val bitmap = findViewById<FrameLayout>(R.id.drawing_fl)
+        val values = ContentValues().apply {
+            put(
+                MediaStore.MediaColumns.DISPLAY_NAME,
+                System.currentTimeMillis().toString().substring(2, 11) + ".jpeg"
+            )
+            put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DCIM)
+        }
+        val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+        val dialog = showInProgress()
+            lifecycleScope.launch{
+                withContext(Dispatchers.IO) {
+                    delay(1000)
+                    uri?.let {
+                        contentResolver.openOutputStream(it).use { it_->
+
+                            val temp = bitmap.drawToBitmap()
+                            temp.compress(Bitmap.CompressFormat.JPEG, 90, it_)
+
+                        }
+                    }
+
+                }
+                dialog.dismiss()
+                val shareIntent: Intent = Intent().apply {
+                    action = Intent.ACTION_SEND
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    type = "image/jpeg"
+                }
+
+                startActivity(Intent.createChooser(shareIntent, null))
+            }
+
+
+
+
+    }
+
+    private fun showInProgress(): Dialog {
+        var dialog = Dialog(this)
+        dialog.setContentView(R.layout.in_progress)
+        dialog.setCancelable(false)
+        dialog.show()
+        return dialog
     }
 
     private fun setUpPallet(drawingView: DrawingView) {
