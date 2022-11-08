@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Paint</string>
+    <string name="black">black color</string>
+    <string name="red">red color</string>
+    <string name="green"> green color</string>
+    <string name="blue"> blue color</string>
+    <string name="purple"> purple color</string>
+    <string name="white">white color</string>
+    <string name="brush_icon"> brush</string>
+    <string name="gallery_icon">gallery</string>
+    <string name="undo_icon">undo</string>
+    <string name="save_icon">save</string>
+    <string name="small"> small</string>
+    <string name="medium"> medium</string>
+    <string name="large"> large</string>
+    <string name="background_image"> background image</string>
+</resources>
